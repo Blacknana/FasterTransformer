@@ -89,6 +89,7 @@ void multi_gpu_gpt_example(const INIReader reader, std::string in_csv)
     auto                                       model_config = read_model_config(reader);
     std::map<std::string, std::pair<int, int>> p_prompt_tuning_table_pair(init_prompt_tuning_map(reader, model_config));
     auto                                       request_config = read_request_config(reader);
+    opt_wrapper(model_config, request_config);
 
     NcclParam tensor_para, pipeline_para;
     int       rank, world_size;

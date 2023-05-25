@@ -103,6 +103,8 @@ model_config_t read_model_config(const INIReader& reader)
     config.sparse     = static_cast<bool>(reader.GetInteger("ft_instance_hyperparameter", "sparse"));
     config.int8_mode  = reader.GetInteger("ft_instance_hyperparameter", "int8_mode");
 
+    config.nvlink = reader.GetInteger("ft_instance_hyperparameter", "nvlink");
+    config.data_para_size   = reader.GetInteger("ft_instance_hyperparameter", "data_para_size");
     config.tensor_para_size   = reader.GetInteger("ft_instance_hyperparameter", "tensor_para_size");
     config.pipeline_para_size = reader.GetInteger("ft_instance_hyperparameter", "pipeline_para_size");
 
@@ -211,6 +213,37 @@ request_config_t read_request_config(const INIReader& reader)
     return config;
 }
 
+void opt_wrapper(model_config_t &model_config, request_config_t &request_config)
+{
+    if (request_config.request_batch_size > 12 && request_config.request_batch_size % 2 == 1) {
+        request_config.request_batch_size += 1;
+    }
+
+    if (model_config.nvlink) {
+	    if (request_config.request_batch_size > 32) {
+		    request_config.request_batch_size /= 2;
+		    model_config.data_para_size = 2;
+		    model_config.tensor_para_size = 1;
+		    model_config.pipeline_para_size = 1;
+	    } else {
+		    model_config.data_para_size = 1;
+		    model_config.tensor_para_size = 2;
+		    model_config.pipeline_para_size = 1;
+	    }
+    } else {
+	    if (request_config.request_batch_size > 3) {
+                    request_config.request_batch_size /= 2;
+                    model_config.data_para_size = 2;
+                    model_config.tensor_para_size = 1;
+                    model_config.pipeline_para_size = 1;
+            } else {
+                    model_config.data_para_size = 1;
+                    model_config.tensor_para_size = 2;
+                    model_config.pipeline_para_size = 1;
+            }
+    }
+}
+
 std::map<std::string, std::pair<int, int>> init_prompt_tuning_map(const INIReader& reader, const model_config_t& config)
 {
     // NOTE：specify task names, take name id, prompt length in order to load those prompt learning tables.
@@ -239,8 +272,8 @@ std::pair<int, int> init_multiprocessing(const model_config_t& model_config)
         printf("Total ranks: %d.\n", world_size);
     }
 
-    if (model_config.tensor_para_size * model_config.pipeline_para_size != world_size) {
-        printf("[ERROR] tensor_para_size * pipeline_para_size should equal to world_size \n");
+    if (model_config.data_para_size * model_config.tensor_para_size * model_config.pipeline_para_size != world_size) {
+        printf("[ERROR] data_para_size * tensor_para_size * pipeline_para_size should equal to world_size \n");
         exit(-1);
     }
 

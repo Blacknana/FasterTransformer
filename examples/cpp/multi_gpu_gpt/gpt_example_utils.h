@@ -34,6 +34,8 @@ struct model_config_t {
     int         int8_mode;
     int         attention_type;
 
+    int nvlink;
+    int data_para_size;
     int tensor_para_size;
     int pipeline_para_size;
 
@@ -82,6 +84,7 @@ struct request_config_t {
 
 model_config_t   read_model_config(const INIReader& reader);
 request_config_t read_request_config(const INIReader& reader);
+void opt_wrapper(model_config_t& model_config, request_config_t& request_config);
 
 template<typename T>
 static inline void safe_free(T*& ptr)
